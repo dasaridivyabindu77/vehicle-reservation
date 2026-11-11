@@ -162,7 +162,7 @@ class DynamicDataStore:
         start_ts: str,
         end_ts: str,
         zone_id: Optional[str] = None,
-        status: str = "pending_admin",
+        status: str = "confirmed",
     ) -> int:
         cur = self.conn.cursor()
         cur.execute(

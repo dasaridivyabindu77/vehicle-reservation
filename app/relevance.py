@@ -30,6 +30,9 @@ _STOPWORDS = {
     "us", "was", "we", "were", "what", "when", "where", "which", "who", "why", "will",
     "with", "would", "you", "your", "yours", "about", "would", "want", "need", "tell",
     "give", "get", "know", "there", "any", "some", "much", "many",
+    # Domain-ubiquitous terms: the brand/topic appears in nearly every document,
+    # so they carry no discriminating signal and would inflate overlap.
+    "citypark", "parking", "park",
 }
 
 
@@ -75,6 +78,20 @@ def filter_documents(
     kept: List[Tuple[Document, float]] = []
     for doc, score in scored_docs:
         effective_score = score if use_scores else None
-        if is_relevant(query, doc.page_content, effective_score, min_overlap, min_score):
+        searchable_text = " ".join(
+            [
+                doc.page_content,
+                doc.metadata.get("title", ""),
+                doc.metadata.get("category", ""),
+            ]
+        )
+
+        if is_relevant(
+            query,
+            searchable_text,
+            effective_score,
+            min_overlap,
+            min_score,
+        ):
             kept.append((doc, score))
     return kept

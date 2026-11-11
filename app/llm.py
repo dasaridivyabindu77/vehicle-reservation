@@ -29,6 +29,8 @@ def build_embeddings(settings: Settings) -> Embeddings:
         api_key=settings.dial_api_key,
         api_version=settings.dial_api_version,
         azure_deployment=settings.embedding_model,
+        timeout=30.0,
+        max_retries=2,
     )
 
 
@@ -49,4 +51,6 @@ def build_chat_model(settings: Settings) -> Optional[BaseChatModel]:
         api_version=settings.dial_api_version,
         azure_deployment=settings.chat_model,
         temperature=0.0,
+        timeout=60.0,
+        max_retries=2,
     )

@@ -43,8 +43,11 @@ _QUESTION_RE = re.compile(
 )
 _CANCEL_WORDS = {"cancel", "stop", "quit", "exit", "nevermind", "never mind"}
 _SMALLTALK = {
-    "hi", "hello", "hey", "hiya", "yo", "good morning", "good afternoon",
-    "good evening", "thanks", "thank you", "thank", "help", "menu", "start",
+    "hi", "hello", "hey", "hiya", "yo",
+    "good morning", "good afternoon", "good evening",
+    "thanks", "thank you", "thank",
+    "help", "menu", "start",
+    "sure", "okay", "ok", "alright", "got it",
 }
 
 # Prefix matches (no trailing \b) so plurals/inflections hit:
@@ -53,7 +56,8 @@ _AVAIL_RE = re.compile(
     r"\b(avail|free|spot|space|vacanc|room|full|left|how many)", re.IGNORECASE
 )
 _PRICE_RE = re.compile(
-    r"\b(pric|cost|how much|fee|rate|charg|tariff|expensiv)", re.IGNORECASE
+    # "charg" but not "charging"/"charger" (those are EV, not fees)
+    r"\b(pric|cost|how much|fee|rate|charg(?!ing|er)|tariff|expensiv)", re.IGNORECASE
 )
 _HOURS_RE = re.compile(r"\b(hour|open|clos|timing)", re.IGNORECASE)
 
@@ -104,13 +108,29 @@ class Chatbot:
 
     def classify(self, message: str, session_id: str) -> str:
         session = self._sessions.get(session_id)
-        if session is not None and session.active:
-            return "reserve"
         text = message.strip()
+        normalized = text.lower()
+
+        # Handle booking commands while a reservation is active.
+        if session is not None and session.active:
+
+            # Reset and cancellation commands belong to the booking flow.
+            if normalized in _CANCEL_WORDS or normalized in {"reset", "restart"}:
+                return "reserve"
+
+            # Allow users to ask information questions during booking.
+            if _QUESTION_RE.match(text) or text.endswith("?"):
+                return "info"
+
+            # Otherwise, treat the message as the next booking answer.
+            return "reserve"
+
+        # Start a new booking when the user expresses booking intent.
         if _BOOKING_RE.search(text) and not (
             _QUESTION_RE.match(text) or text.endswith("?")
         ):
             return "reserve"
+
         return "info"
 
     def run_reservation(self, session_id: str, message: str) -> str:
@@ -120,8 +140,11 @@ class Chatbot:
             self._sessions[session_id] = session
             return reservation.first_prompt()
         if message.strip().lower() in _CANCEL_WORDS:
-            session.active = False
-            return "No problem — I've cancelled that booking. Anything else I can help with?"
+                session.active = False
+                session.data.clear()
+                session.completed = False
+                session.reservation_id = None
+                return "No problem — I've cancelled that booking process. Anything else I can help with?"
         result = reservation.ingest(session, message, store=self.sql)
         return result.reply
 
@@ -153,6 +176,18 @@ class Chatbot:
         dynamic_context: str,
     ) -> Tuple[str, bool]:
         if self._is_smalltalk(message):
+            normalized = message.strip().lower().rstrip("!?.,")
+
+            if normalized in {"sure", "okay", "ok", "alright", "got it"}:
+                return (
+                    "Great! What would you like to know about CityPark? "
+                    "Anything else I can help with?",
+                    False
+                )
+
+            if normalized in {"thanks", "thank you", "thank"}:
+                return "You're welcome! Happy to help with CityPark parking.", False
+
             return self._help_text(), False
         if not docs and not dynamic_context:
             return REFUSAL, True

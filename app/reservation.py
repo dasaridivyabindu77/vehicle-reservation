@@ -55,37 +55,52 @@ class IngestResult:
 
 
 def _validate(slot: str, raw: str) -> tuple[Optional[str], Optional[str]]:
-    """Return ``(value, error)``. Exactly one is non-None."""
+    """Validate reservation fields and return (value, error)."""
+
     text = raw.strip()
+
     if not text:
-        return None, "I didn't catch that — could you type it again?"
+        return None, "Please enter a value."
 
     if slot in ("first_name", "last_name"):
-        if not NAME_RE.match(text):
-            return None, "That doesn't look like a valid name. Please use letters only."
+        if not NAME_RE.fullmatch(text):
+            return None, "Please enter a valid name using letters only."
         return text.title(), None
 
     if slot == "car_number":
         normalized = text.upper().replace(" ", "").replace("-", "")
-        if not PLATE_RE.match(normalized):
+        if not PLATE_RE.fullmatch(normalized):
             return None, (
-                "A licence plate should be 4-10 letters/numbers. "
-                "Please re-enter it (e.g. ABC1234)."
+                "Please enter a valid licence plate with 4-10 "
+                "letters or numbers (e.g. ABC1234)."
             )
         return normalized, None
 
     if slot in ("start", "end"):
+        # Require a complete date and time.
+        if not re.fullmatch(r"\d{4}-\d{2}-\d{2} \d{2}:\d{2}", text):
+            return None, (
+                "Please enter the complete date and time in "
+                "YYYY-MM-DD HH:MM format. Example: 2026-11-20 09:00."
+            )
+
         try:
-            dt = dateparser.parse(text)
-        except (ValueError, OverflowError):
-            dt = None
-        if dt is None:
-            return None, "I couldn't read that date/time. Try e.g. 2026-11-20 09:00."
-        if dt < datetime.now():
-            return None, "That time is in the past. Please pick a future date/time."
+            dt = datetime.strptime(text, "%Y-%m-%d %H:%M")
+        except ValueError:
+            return None, (
+                "Invalid date or time. Please use YYYY-MM-DD HH:MM, "
+                "for example 2026-11-20 09:00."
+            )
+
+        if dt <= datetime.now():
+            return None, (
+                "That date/time must be in the future. "
+                "Please enter a future date and time."
+            )
+
         return dt.isoformat(timespec="minutes"), None
 
-    return text, None  # pragma: no cover - unreachable
+    return text, None
 
 
 def start_session() -> ReservationSession:
@@ -99,6 +114,30 @@ def first_prompt() -> str:
 
 def ingest(session: ReservationSession, user_text: str, store=None) -> IngestResult:
     """Feed one user message into the active reservation flow."""
+    command = user_text.strip().lower()
+
+    if command in {"reset", "restart"}:
+        session.data.clear()
+        session.active = True
+        session.completed = False
+        session.reservation_id = None
+        return IngestResult(
+            reply="Your booking process has been reset. "
+                  + first_prompt()
+        )
+
+    if command in {
+        "cancel", "stop", "quit", "exit",
+        "nevermind", "never mind"
+    }:
+        session.data.clear()
+        session.active = False
+        session.completed = False
+        return IngestResult(
+            reply="Your booking process has been cancelled. "
+                  "You can start a new reservation whenever you're ready.",
+            done=True
+        )
     slot = session.next_slot()
     if slot is None:
         return IngestResult(reply="Your reservation is already complete.", done=True)
@@ -144,6 +183,6 @@ def confirmation(session: ReservationSession) -> str:
         f"  Plate: {d['car_number']}\n"
         f"  From:  {d['start']}\n"
         f"  To:    {d['end']}\n"
-        f"Status: pending administrator confirmation.{ref}\n"
-        "An administrator will review and confirm it shortly."
+        f"Status: CONFIRMED.\n"
+        "Your parking reservation is successfully confirmed. Thank you for choosing CityPark!"
     )

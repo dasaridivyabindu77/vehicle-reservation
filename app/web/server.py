@@ -11,6 +11,9 @@ Run with::
 
 from __future__ import annotations
 
+import logging
+import threading
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI
@@ -19,16 +22,35 @@ from pydantic import BaseModel
 
 from ..chatbot import Chatbot
 
-app = FastAPI(title="CityPark Assistant", version="0.1.0")
+logger = logging.getLogger(__name__)
+
 _bot: Chatbot | None = None
+_bot_lock = threading.Lock()
 _INDEX = (Path(__file__).parent / "index.html").read_text(encoding="utf-8")
 
 
 def get_bot() -> Chatbot:
+    """Return the singleton chatbot, building it at most once (thread-safe)."""
     global _bot
     if _bot is None:
-        _bot = Chatbot()
+        with _bot_lock:
+            if _bot is None:  # double-checked locking
+                _bot = Chatbot()
     return _bot
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Warm the bot once at startup so the first request isn't a cold network build.
+    try:
+        get_bot()
+        logger.info("Chatbot ready")
+    except Exception as exc:  # noqa: BLE001 - don't block startup
+        logger.warning("Chatbot warm-up failed (%s); will retry on first request", exc)
+    yield
+
+
+app = FastAPI(title="CityPark Assistant", version="0.1.0", lifespan=lifespan)
 
 
 class ChatRequest(BaseModel):
