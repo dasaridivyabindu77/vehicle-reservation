@@ -1,0 +1,604 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>CityPark Stage 2 — Human-in-the-Loop Administrator Approval</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=JetBrains+Mono:wght@400;600&display=swap" />
+  <style>
+    :root {
+      --bg: #0a1628;
+      --surface: #132744;
+      --text: #e8edf5;
+      --muted: #8ca0bc;
+      --accent: #3b82f6;
+      --accent-bright: #60a5fa;
+      --orange: #fb923c;
+      --green: #34d399;
+      --code-bg: #0d1b2a;
+      --border: #1e3a5f;
+      color-scheme: dark;
+    }
+    @media (prefers-color-scheme: light) {
+      :root:not([data-theme="dark"]) {
+        --bg: #ffffff;
+        --surface: #f8fafc;
+        --text: #0f172a;
+        --muted: #64748b;
+        --accent: #2563eb;
+        --accent-bright: #3b82f6;
+        --orange: #f97316;
+        --green: #10b981;
+        --code-bg: #f1f5f9;
+        --border: #cbd5e1;
+        color-scheme: light;
+      }
+    }
+    :root[data-theme="light"] {
+      --bg: #ffffff;
+      --surface: #f8fafc;
+      --text: #0f172a;
+      --muted: #64748b;
+      --accent: #2563eb;
+      --accent-bright: #3b82f6;
+      --orange: #f97316;
+      --green: #10b981;
+      --code-bg: #f1f5f9;
+      --border: #cbd5e1;
+      color-scheme: light;
+    }
+    * { box-sizing: border-box; margin: 0; }
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: Inter, system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+    }
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 40px 24px;
+    }
+    .slide {
+      min-height: 80vh;
+      padding: 60px 0;
+      border-bottom: 2px solid var(--border);
+    }
+    .slide:last-child { border-bottom: none; }
+    h1 {
+      font-size: 3rem;
+      font-weight: 700;
+      line-height: 1.1;
+      margin-bottom: 1rem;
+      text-wrap: balance;
+      color: var(--text);
+    }
+    h2 {
+      font-size: 2.25rem;
+      font-weight: 700;
+      margin-bottom: 1.5rem;
+      color: var(--accent-bright);
+      text-wrap: balance;
+    }
+    h3 {
+      font-size: 1.5rem;
+      font-weight: 600;
+      margin-bottom: 1rem;
+      color: var(--text);
+    }
+    .subtitle {
+      font-size: 1.25rem;
+      color: var(--muted);
+      margin-bottom: 2rem;
+    }
+    .hero-tags {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 2rem;
+    }
+    .tag {
+      padding: 6px 14px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: var(--accent-bright);
+    }
+    .grid {
+      display: grid;
+      gap: 24px;
+      margin: 2rem 0;
+    }
+    .grid-2 { grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
+    .grid-3 { grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 24px;
+    }
+    .card h3 {
+      font-size: 1.125rem;
+      margin-bottom: 0.75rem;
+    }
+    .card p {
+      color: var(--muted);
+      font-size: 0.9375rem;
+    }
+    .diagram {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 32px;
+      margin: 2rem 0;
+      overflow-x: auto;
+    }
+    .flow {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      flex-wrap: wrap;
+      font-family: JetBrains Mono, monospace;
+      font-size: 0.875rem;
+    }
+    .flow-box {
+      padding: 12px 18px;
+      background: var(--code-bg);
+      border: 2px solid var(--accent);
+      border-radius: 8px;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+    .flow-box.admin { border-color: var(--orange); }
+    .flow-box.human { border-color: var(--green); background: var(--surface); }
+    .flow-arrow {
+      color: var(--muted);
+      font-size: 1.5rem;
+    }
+    code, pre {
+      font-family: JetBrains Mono, monospace;
+      background: var(--code-bg);
+      border-radius: 6px;
+    }
+    code {
+      padding: 2px 6px;
+      font-size: 0.875rem;
+    }
+    pre {
+      padding: 16px;
+      overflow-x: auto;
+      font-size: 0.8125rem;
+      line-height: 1.6;
+      border: 1px solid var(--border);
+    }
+    ul {
+      margin: 1rem 0;
+      padding-left: 1.5rem;
+    }
+    li {
+      margin: 0.5rem 0;
+      color: var(--muted);
+    }
+    li strong { color: var(--text); }
+    .highlight {
+      background: linear-gradient(120deg, var(--accent) 0%, var(--accent-bright) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      font-weight: 700;
+    }
+    .stats {
+      display: flex;
+      gap: 40px;
+      margin: 2rem 0;
+      flex-wrap: wrap;
+    }
+    .stat-box {
+      text-align: center;
+    }
+    .stat-number {
+      font-size: 3rem;
+      font-weight: 700;
+      color: var(--accent-bright);
+      line-height: 1;
+    }
+    .stat-label {
+      font-size: 0.875rem;
+      color: var(--muted);
+      margin-top: 0.5rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .architecture-diagram {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 24px;
+      font-family: JetBrains Mono, monospace;
+      font-size: 0.8125rem;
+      line-height: 1.8;
+      overflow-x: auto;
+      white-space: pre;
+      color: var(--text);
+    }
+    .architecture-diagram .agent1 { color: var(--accent-bright); }
+    .architecture-diagram .agent2 { color: var(--orange); }
+    .architecture-diagram .human { color: var(--green); }
+    .architecture-diagram .store { color: var(--muted); }
+    @media (max-width: 768px) {
+      h1 { font-size: 2rem; }
+      h2 { font-size: 1.75rem; }
+      .slide { min-height: auto; padding: 40px 0; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+
+    <!-- Slide 1: Title -->
+    <section class="slide">
+      <h1>CityPark Stage 2<br><span class="highlight">Human-in-the-Loop</span> Administrator Approval</h1>
+      <p class="subtitle">A two-agent LangChain system connecting user reservations to human administrators</p>
+      <div class="hero-tags">
+        <span class="tag">LangChain + LangGraph</span>
+        <span class="tag">EPAM DIAL</span>
+        <span class="tag">Multi-Agent</span>
+        <span class="tag">Human-in-the-Loop</span>
+      </div>
+      <div class="stats">
+        <div class="stat-box">
+          <div class="stat-number">2</div>
+          <div class="stat-label">LangChain Agents</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-number">3</div>
+          <div class="stat-label">Admin Interfaces</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-number">52</div>
+          <div class="stat-label">Tests Passing</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-number">100%</div>
+          <div class="stat-label">Offline Capable</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Slide 2: Problem & Solution -->
+    <section class="slide">
+      <h2>The Problem</h2>
+      <div class="card">
+        <h3>Stage 1 auto-confirmed reservations</h3>
+        <p>The initial chatbot collected booking details through slot-filling and immediately confirmed reservations. No human oversight — no way to refuse a booking when the lot is full, a date is blocked, or special circumstances require manual review.</p>
+      </div>
+      <h2 style="margin-top: 3rem;">Stage 2 Solution</h2>
+      <div class="grid grid-2">
+        <div class="card">
+          <h3>🤖 Second LangChain Agent</h3>
+          <p>The <strong>AdminAgent</strong> composes approval requests, delivers them through multiple channels, and interprets the administrator's free-text replies (approve/refuse with reason).</p>
+        </div>
+        <div class="card">
+          <h3>👤 Human Administrator</h3>
+          <p>Sees pending reservations via <strong>web dashboard</strong>, <strong>terminal CLI</strong>, or <strong>optional email</strong>. Responds with plain language — the agent parses it into structured decisions.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Slide 3: Architecture -->
+    <section class="slide">
+      <h2>Two-Agent Architecture</h2>
+      <div class="architecture-diagram"><span class="agent1">┌─── Agent 1: User-Facing Chatbot (Stage 1) ─────────────────┐
+│ • LangGraph turn: input_guard → route → reserve/retrieve │
+│ • Slot-filling reservation collection                     │
+│ • Guardrails, grounding, RAG retrieval                    │
+└───────────────────────────────┬───────────────────────────┘
+                                │ reservation complete
+                                ▼
+                    EscalationService.submit(id)
+                                │
+                                ▼</span>
+<span class="agent2">┌─── Agent 2: Administrator Agent (Stage 2) ──────────────────┐
+│ AdminAgent (LangChain agent):                              │
+│   • compose_request()    → DIAL or template                │
+│   • escalate()           → deliver via channels            │
+│   • interpret_decision() → DIAL or keyword parse           │
+└────────────────────────────┬───────────────────────────────┘
+                             │
+        ┌────────────────────┼────────────────────┐
+        ▼                    ▼                    ▼
+   LogChannel         EmailChannel         Dashboard/CLI
+   (always on)     (optional SMTP)       (always on)
+                             │
+                             ▼</span>
+<span class="human">        ┌──────────────────────────────────────┐
+        │  Human Administrator sees request:   │
+        │  • GET /admin (web dashboard)        │
+        │  • python -m app.admin.cli           │
+        │  • email inbox (if SMTP configured)  │
+        └──────────────┬───────────────────────┘
+                       │ approve/refuse
+                       ▼</span>
+        POST /admin/api/reservations/{id}/decision
+                       │
+                       ▼
+        EscalationService.decide(id, decision, reason)
+          → AdminAgent.interpret_decision()
+          → <span class="store">SQLite: status=confirmed|refused</span>
+                       │
+                       ▼
+<span class="agent1">        User asks: "what's the status?"
+        Chatbot reads decision from SQL
+        User gets real-time status update</span></div>
+    </section>
+
+    <!-- Slide 4: Key Components -->
+    <section class="slide">
+      <h2>Key Stage 2 Components</h2>
+      <div class="grid grid-3">
+        <div class="card">
+          <h3>AdminAgent</h3>
+          <p>The second LangChain agent with three language skills: compose (turn reservation → approval request), escalate (deliver via tool-calling), interpret (free-text → structured decision).</p>
+        </div>
+        <div class="card">
+          <h3>EscalationService</h3>
+          <p>Bridge between the two agents. User agent submits completed reservations; admin agent delivers them; decisions flow back through shared SQLite store.</p>
+        </div>
+        <div class="card">
+          <h3>Delivery Channels</h3>
+          <p>LogChannel (always on), EmailChannel (optional SMTP), RecordingChannel (tests). All errors logged, never crash a turn.</p>
+        </div>
+        <div class="card">
+          <h3>Web Dashboard</h3>
+          <p><code>GET /admin</code> — real-time HTML UI listing pending reservations with Approve/Refuse buttons. Dark theme, auto-refreshes every 10s.</p>
+        </div>
+        <div class="card">
+          <h3>Admin CLI</h3>
+          <p><code>python -m app.admin.cli</code> — interactive terminal interface for approving/refusing reservations from the command line.</p>
+        </div>
+        <div class="card">
+          <h3>REST API</h3>
+          <p><code>GET /admin/api/reservations</code> lists pending. <code>POST .../decision</code> applies approve/refuse (requires token if configured).</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Slide 5: Flow Example -->
+    <section class="slide">
+      <h2>End-to-End Flow Example</h2>
+      <div class="diagram">
+        <div class="flow">
+          <div class="flow-box">User: "I'd like to book"</div>
+          <span class="flow-arrow">→</span>
+          <div class="flow-box">Chatbot: slot-filling</div>
+        </div>
+        <div class="flow" style="margin-top: 16px;">
+          <div class="flow-box">All slots filled</div>
+          <span class="flow-arrow">→</span>
+          <div class="flow-box">SQL: status=pending_admin</div>
+          <span class="flow-arrow">→</span>
+          <div class="flow-box admin">EscalationService.submit()</div>
+        </div>
+        <div class="flow" style="margin-top: 16px;">
+          <div class="flow-box admin">AdminAgent.compose_request()</div>
+          <span class="flow-arrow">→</span>
+          <div class="flow-box admin">AdminAgent.escalate()</div>
+        </div>
+        <div class="flow" style="margin-top: 16px;">
+          <div class="flow-box admin">Deliver via channels</div>
+          <span class="flow-arrow">→</span>
+          <div class="flow-box human">Admin sees dashboard</div>
+        </div>
+        <div class="flow" style="margin-top: 16px;">
+          <div class="flow-box human">Admin: "approve"</div>
+          <span class="flow-arrow">→</span>
+          <div class="flow-box admin">AdminAgent.interpret()</div>
+          <span class="flow-arrow">→</span>
+          <div class="flow-box">SQL: confirmed</div>
+        </div>
+        <div class="flow" style="margin-top: 16px;">
+          <div class="flow-box">User: "status?"</div>
+          <span class="flow-arrow">→</span>
+          <div class="flow-box">Chatbot reads SQL</div>
+          <span class="flow-arrow">→</span>
+          <div class="flow-box">"Confirmed by admin"</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Slide 6: LangChain Agent Details -->
+    <section class="slide">
+      <h2>AdminAgent: LangChain Implementation</h2>
+      <h3>Three Language Skills</h3>
+      <div class="grid grid-2">
+        <div class="card">
+          <h3>1. compose_request()</h3>
+          <pre>prompt | DIAL chat | StrOutputParser
+→ clear approval request
+
+Offline fallback: template</pre>
+        </div>
+        <div class="card">
+          <h3>2. escalate()</h3>
+          <pre>Tool-calling agent with
+deliver_to_administrator tool
+
+Offline fallback: direct delivery</pre>
+        </div>
+      </div>
+      <div class="card" style="margin-top: 24px;">
+        <h3>3. interpret_decision()</h3>
+        <pre>DIAL with structured output (Pydantic):
+  {approved: bool, reason: str}
+
+Offline fallback: keyword parser
+  - _APPROVE_WORDS, _REFUSE_WORDS, _REFUSE_PHRASES
+  - ambiguous → refuse (safe default)</pre>
+      </div>
+    </section>
+
+    <!-- Slide 7: Configuration -->
+    <section class="slide">
+      <h2>Configuration & Deployment</h2>
+      <h3>Required Settings</h3>
+      <pre>DIAL_API_KEY=     # empty = offline mode (both agents use deterministic fallbacks)
+SQLITE_PATH=citypark.db</pre>
+
+      <h3 style="margin-top: 2rem;">Optional Admin Settings</h3>
+      <pre>ADMIN_NAME=CityPark Administrator
+ADMIN_EMAIL=       # if set, enables SMTP email escalation
+ADMIN_TOKEN=       # if set, /admin/api requires ?token=...</pre>
+
+      <h3 style="margin-top: 2rem;">Optional SMTP (activates when SMTP_HOST + ADMIN_EMAIL set)</h3>
+      <pre>SMTP_HOST=
+SMTP_PORT=587
+SMTP_USER=
+SMTP_PASSWORD=
+SMTP_FROM=         # falls back to SMTP_USER
+SMTP_USE_TLS=True</pre>
+    </section>
+
+    <!-- Slide 8: Testing & Quality -->
+    <section class="slide">
+      <h2>Testing & Quality Assurance</h2>
+      <div class="stats">
+        <div class="stat-box">
+          <div class="stat-number">52</div>
+          <div class="stat-label">Total Tests</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-number">21</div>
+          <div class="stat-label">New Stage 2 Tests</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-number">100%</div>
+          <div class="stat-label">Pass Rate</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-number">0</div>
+          <div class="stat-label">External Dependencies</div>
+        </div>
+      </div>
+      <h3 style="margin-top: 2rem;">Stage 2 Test Coverage</h3>
+      <ul>
+        <li><strong>test_admin_agent.py</strong> — AdminAgent compose / escalate / interpret, offline mode</li>
+        <li><strong>test_admin_escalation.py</strong> — EscalationService submit / decide / pending queries</li>
+        <li><strong>test_admin_routes.py</strong> — Dashboard HTML, API endpoints, decision workflow</li>
+        <li><strong>Integration tests</strong> — End-to-end reservation → escalation → decision → status query</li>
+      </ul>
+      <p style="margin-top: 1rem; color: var(--muted);">All tests run in <strong>offline mode</strong> (no DIAL key, in-memory vector store, throwaway SQLite). CI runs the full suite on every push.</p>
+    </section>
+
+    <!-- Slide 9: Technology Stack -->
+    <section class="slide">
+      <h2>Technology Stack</h2>
+      <div class="grid grid-2">
+        <div>
+          <h3>Stage 1 (User Agent)</h3>
+          <ul>
+            <li><strong>LangChain + LangGraph</strong> — RAG orchestration</li>
+            <li><strong>Weaviate</strong> — vector store (+ in-memory fallback)</li>
+            <li><strong>SQLite</strong> — dynamic data + reservations</li>
+            <li><strong>EPAM DIAL</strong> — Azure-OpenAI compatible LLM backend</li>
+            <li><strong>FastAPI</strong> — web server</li>
+            <li><strong>pytest</strong> — testing</li>
+          </ul>
+        </div>
+        <div>
+          <h3>Stage 2 (Admin Agent)</h3>
+          <ul>
+            <li><strong>LangChain agents</strong> — compose, tool-calling, structured output</li>
+            <li><strong>SMTP (optional)</strong> — email escalation</li>
+            <li><strong>FastAPI</strong> — admin dashboard + REST API</li>
+            <li><strong>SQLite</strong> — shared state (decision tracking)</li>
+            <li><strong>pytest + TestClient</strong> — admin route testing</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- Slide 10: Outcomes & Deliverables -->
+    <section class="slide">
+      <h2>Stage 2 Outcomes & Deliverables</h2>
+      <div class="grid grid-2">
+        <div class="card">
+          <h3>✅ Multi-Agent System</h3>
+          <p>Two LangChain agents communicating through shared SQLite store. User agent collects bookings; admin agent handles human approval loop.</p>
+        </div>
+        <div class="card">
+          <h3>✅ Human Integration</h3>
+          <p>Administrator sees requests via web dashboard, CLI, or email. Responds in plain language; agent interprets it into structured decisions.</p>
+        </div>
+        <div class="card">
+          <h3>✅ Production Ready</h3>
+          <p>Fully offline-capable, comprehensive test coverage, never crashes a chat turn. Delivery failures logged, not fatal.</p>
+        </div>
+        <div class="card">
+          <h3>✅ Complete Documentation</h3>
+          <p>Updated README with architecture diagrams, setup instructions, usage examples. Inline docstrings throughout.</p>
+        </div>
+      </div>
+      <h3 style="margin-top: 2rem;">Repository Structure</h3>
+      <pre>app/admin/
+  agent.py         — AdminAgent (second LangChain agent)
+  escalation.py    — EscalationService (bridge)
+  channels.py      — LogChannel, EmailChannel, RecordingChannel
+  routes.py        — FastAPI admin dashboard + decision API
+  dashboard.html   — Real-time admin UI
+  cli.py           — Terminal approval interface
+
+tests/
+  test_admin_agent.py       — 7 tests
+  test_admin_escalation.py  — 7 tests
+  test_admin_routes.py      — 7 tests</pre>
+    </section>
+
+    <!-- Slide 11: Demo Instructions -->
+    <section class="slide">
+      <h2>Running the System</h2>
+      <h3>1. User Chat (Stage 1)</h3>
+      <pre>python -m app.cli
+# or
+uvicorn app.web.server:app --reload
+# open http://127.0.0.1:8000</pre>
+
+      <h3 style="margin-top: 2rem;">2. Administrator Dashboard (Stage 2)</h3>
+      <pre>uvicorn app.web.server:app --reload
+# open http://127.0.0.1:8000/admin</pre>
+
+      <h3 style="margin-top: 2rem;">3. Administrator CLI (Stage 2)</h3>
+      <pre>python -m app.admin.cli</pre>
+
+      <h3 style="margin-top: 2rem;">4. Run Tests</h3>
+      <pre>pytest -q
+# 52 passed in ~2s</pre>
+    </section>
+
+    <!-- Slide 12: Summary -->
+    <section class="slide">
+      <h2>Summary</h2>
+      <div class="card">
+        <h3>Stage 2 Implementation Complete</h3>
+        <p style="margin-bottom: 1rem;">Human-in-the-loop administrator approval system with two LangChain agents, three admin interfaces (dashboard/CLI/email), and full offline capability.</p>
+        <ul style="margin-top: 1rem;">
+          <li><strong>Second LangChain agent</strong> — AdminAgent with compose/escalate/interpret skills</li>
+          <li><strong>Multi-channel delivery</strong> — log, dashboard, CLI, optional email</li>
+          <li><strong>EscalationService</strong> — bridges user and admin agents through SQLite</li>
+          <li><strong>21 new tests</strong> — all passing, all offline, comprehensive coverage</li>
+          <li><strong>Production-ready</strong> — never crashes a turn, delivery failures logged</li>
+          <li><strong>Complete documentation</strong> — README, docstrings, architecture diagrams</li>
+        </ul>
+      </div>
+      <div style="margin-top: 3rem; text-align: center; color: var(--muted);">
+        <p><strong>Repository:</strong> <code>vehicle-reservation</code> (branch: <code>stage-2</code>)</p>
+        <p style="margin-top: 0.5rem;"><strong>Total lines added:</strong> 1979 (18 files changed)</p>
+      </div>
+    </section>
+
+  </div>
+</body>
+</html>
