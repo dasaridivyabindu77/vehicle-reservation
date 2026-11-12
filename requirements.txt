@@ -19,6 +19,7 @@ numpy>=1.26
 # Web API + UI
 fastapi>=0.115
 uvicorn[standard]>=0.30
+httpx>=0.27  # Stage 3: MCP client communication
 
 # Tests
 pytest>=8.0

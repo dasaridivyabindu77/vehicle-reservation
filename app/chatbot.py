@@ -103,11 +103,24 @@ class Chatbot:
         self._graph = build_turn_graph(self)
 
         # Stage 2: administrator approval escalation.
+        # Stage 3: MCP server for writing confirmed reservations to file.
         if escalation is not None:
             self.escalation = escalation
         else:
             admin_agent = AdminAgent(self.settings, self.chat_model)
-            self.escalation = EscalationService(self.sql, admin_agent)
+            # Initialize MCP client if configured (Stage 3)
+            mcp_client = None
+            if self.settings.mcp_configured:
+                try:
+                    from mcp_server.client import MCPClient
+                    mcp_client = MCPClient(
+                        base_url=self.settings.mcp_server_url,
+                        token=self.settings.mcp_server_token,
+                    )
+                    logger.info("Stage 3: MCP client initialized")
+                except Exception as e:
+                    logger.warning("Stage 3: Failed to initialize MCP client: %s", e)
+            self.escalation = EscalationService(self.sql, admin_agent, mcp_client)
 
         if seed:
             self.bootstrap()

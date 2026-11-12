@@ -54,6 +54,11 @@ class Settings(BaseSettings):
     smtp_from: str = ""              # falls back to smtp_user if blank
     smtp_use_tls: bool = True
 
+    # --- Stage 3: MCP server for confirmed reservation persistence ---
+    mcp_server_url: str = "http://127.0.0.1:8001"
+    mcp_server_token: str = ""       # authentication token for MCP server
+    mcp_enabled: bool = True          # enable/disable Stage 3 file writing
+
     @property
     def llm_configured(self) -> bool:
         """True when a real DIAL key is present (i.e. not offline mode)."""
@@ -63,6 +68,11 @@ class Settings(BaseSettings):
     def email_configured(self) -> bool:
         """True when the optional SMTP email escalation channel can be used."""
         return bool(self.smtp_host.strip() and self.admin_email.strip())
+
+    @property
+    def mcp_configured(self) -> bool:
+        """True when Stage 3 MCP server is configured and enabled."""
+        return self.mcp_enabled and bool(self.mcp_server_url.strip())
 
 
 @lru_cache

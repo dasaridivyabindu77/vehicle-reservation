@@ -1,18 +1,21 @@
-# CityPark — RAG Parking Assistant (Stage 1 + 2)
+# CityPark — RAG Parking Assistant (Stage 1 + 2 + 3)
 
 A **human-in-the-loop** Retrieval-Augmented Generation chatbot that answers
 questions about a parking facility and takes reservations through an interactive,
 slot-filling conversation. When a user completes a booking, a **second LangChain
 agent** (the administrator agent) escalates it to the human administrator for
 approval — via a **web dashboard**, **terminal CLI**, and **optional email** —
-and interprets their free-text confirm/refuse reply back into the system. Built
-with **LangChain + LangGraph**, a **Weaviate** vector store for static knowledge,
-and **SQLite** for live/dynamic data. The language and embedding models run on
-**EPAM DIAL** (Azure-OpenAI compatible), with a fully deterministic **offline
-mode** so the whole system — tests, evaluation, CI — runs without a key or network.
+and interprets their free-text confirm/refuse reply back into the system. 
+**Confirmed reservations are automatically written to persistent storage via an
+MCP server** (Stage 3). Built with **LangChain + LangGraph**, a **Weaviate** 
+vector store for static knowledge, and **SQLite** for live/dynamic data. The 
+language and embedding models run on **EPAM DIAL** (Azure-OpenAI compatible), 
+with a fully deterministic **offline mode** so the whole system — tests, 
+evaluation, CI — runs without a key or network.
 
-This repository implements **Stage 1** (the RAG chatbot) and **Stage 2** (the
-human-in-the-loop administrator approval system).
+This repository implements **Stage 1** (the RAG chatbot), **Stage 2** (the
+human-in-the-loop administrator approval system), and **Stage 3** (MCP server
+for confirmed reservation persistence).
 
 ---
 
@@ -45,6 +48,20 @@ human-in-the-loop administrator approval system).
 - **Integration** — completed user reservations auto-escalate to the
   administrator; decisions flow back through the shared SQLite store, so users
   can ask "what's the status of my booking?" and get real-time answers.
+
+**Stage 3 — MCP server for confirmed reservation persistence:**
+
+- **MCP server** — a FastAPI-based server implementing the Model Context Protocol
+  with secure file-writing functionality for confirmed reservations.
+- **Automatic persistence** — when the administrator approves a reservation, it's
+  automatically written to `confirmed_reservations.txt` in the format:
+  `Name | Car Number | Reservation Period | Approval Time`
+- **Security** — token-based authentication prevents unauthorized access; the server
+  resists malicious requests and ensures reliable service.
+- **Non-blocking** — file-writing failures are logged but don't prevent approvals
+  from completing, maintaining system reliability.
+- **Graceful degradation** — Stage 1 and 2 continue to work even if the MCP server
+  is unavailable.
 
 ---
 
@@ -102,6 +119,10 @@ human-in-the-loop administrator approval system).
                                 │        → AdminAgent.interpret_decision()
                                 │        → SQLite: status=confirmed|refused, admin_reason, decided_at
                                 │                │
+                                │                ├─(if confirmed)──▶ Stage 3: MCP Server
+                                │                │                    • MCPClient.write_confirmed_reservation()
+                                │                │                    • Append to confirmed_reservations.txt
+                                │                │                    • Format: Name | Car Number | Period | Time
                                 └────────────────┘
 ```
 
@@ -122,7 +143,7 @@ availability/prices/hours.
 
 ```
 app/
-  config.py        Settings (DIAL, Weaviate, admin, SMTP); offline detection
+  config.py        Settings (DIAL, Weaviate, admin, SMTP, MCP); offline detection
   embeddings.py    Deterministic hashing embeddings (offline mode)
   llm.py           Chat model + embeddings factory (DIAL or offline)
   vectorstore.py   Weaviate store + in-memory fallback
@@ -133,27 +154,33 @@ app/
   guardrails.py    Input exfiltration scan + output PII redaction
   reservation.py   Interactive slot-filling reservation flow (Stage 1)
   graph.py         LangGraph turn orchestration (Stage 1)
-  chatbot.py       User-facing chatbot (Stage 1 + escalation bridge to Stage 2)
+  chatbot.py       User-facing chatbot (Stage 1 + escalation bridge to Stage 2+3)
   cli.py           Terminal chat loop for users
   web/
     server.py      FastAPI app (chat + admin routes)
     index.html     Browser chat UI
   admin/           ▶ Stage 2: human-in-the-loop administrator approval
     agent.py       AdminAgent (the second LangChain agent)
-    escalation.py  EscalationService (bridge between the two agents)
+    escalation.py  EscalationService (bridge between agents, Stage 3 integration)
     channels.py    Delivery channels (log, email, recording)
     routes.py      FastAPI admin dashboard + decision API
     dashboard.html Admin web UI (dark theme, real-time)
     cli.py         Administrator terminal CLI
+mcp_server/        ▶ Stage 3: MCP server for confirmed reservation persistence
+  server.py        FastAPI MCP server with file-writing tools
+  client.py        MCPClient for integration with escalation service
 eval/
   eval_dataset.json  Labelled queries (on-topic + off-topic)
   evaluate.py        Recall@K, Precision@K, MRR, latency, refusal metrics
-tests/               pytest suite (52 tests, all passing)
+tests/               pytest suite (75 tests, all passing)
   test_admin_agent.py       AdminAgent compose / escalate / interpret
   test_admin_escalation.py  EscalationService submit / decide
   test_admin_routes.py      Dashboard + API endpoints
   test_chatbot.py           End-to-end reservation flow + escalation
+  test_mcp_server.py        MCP server tools and endpoints (Stage 3)
+  test_stage3_integration.py End-to-end Stage 1+2+3 integration
   ...                       (Stage 1 coverage: config, embeddings, guardrails, etc.)
+start_mcp_server.py  MCP server launcher script
 docker-compose.yml   Weaviate service (optional; in-memory fallback available)
 .github/workflows/   CI (tests + evaluation, all offline)
 ```
@@ -281,6 +308,38 @@ Both API endpoints require the configured administrator token in the
 for the current chat, including whether it is pending, confirmed, or refused.
 You can also ask about a specific reference, for example "status of booking #7".
 
+### MCP server (Stage 3)
+
+The MCP server must be running before administrator approvals can be persisted
+to file. Start it in a separate terminal:
+
+```bash
+python start_mcp_server.py
+# MCP server starts on http://127.0.0.1:8001
+```
+
+**MCP endpoints:**
+
+- `GET /health` — health check (no authentication required)
+- `GET /tools/list` — list available MCP tools
+- `POST /tools/call/write_confirmed_reservation` — write a confirmed reservation
+- `POST /tools/call/read_confirmed_reservations` — read all confirmed reservations
+- `GET /reservations` — summary of confirmed reservations
+
+All write/read endpoints require authentication via `X-MCP-Token` header when
+`MCP_SERVER_TOKEN` is configured.
+
+**Confirmed reservations file:**
+
+The server writes to `confirmed_reservations.txt` in the project root. Format:
+
+```
+Alice Anderson | AAA-111 | 2026-11-20T10:00:00 to 2026-11-20T18:00:00 | 2026-11-12T16:30:00Z
+Bob Brown | BBB-222 | 2026-11-21T14:00:00 to 2026-11-21T18:00:00 | 2026-11-12T17:45:00Z
+```
+
+Each line: `Name | Car Number | Reservation Period | Approval Time`
+
 ---
 
 ## Guardrails (data protection)
@@ -347,7 +406,8 @@ and the evaluation on every push/PR.
 ## Stage completion
 
 ✅ **Stage 1** — RAG chatbot, guardrails, grounding, evaluation (complete)  
-✅ **Stage 2** — Human-in-the-loop administrator approval via LangChain agent + dashboard/CLI/email (complete)
+✅ **Stage 2** — Human-in-the-loop administrator approval via LangChain agent + dashboard/CLI/email (complete)  
+✅ **Stage 3** — MCP server for confirmed reservation persistence (complete)
 
 **Key Stage 2 deliverables:**
 
@@ -362,3 +422,20 @@ and the evaluation on every push/PR.
    routes); the baseline 31 tests still pass, total 52.
 5. **Documentation** — this README + inline docstrings cover setup, usage, and
    architecture.
+
+**Key Stage 3 deliverables:**
+
+1. **MCP server** — FastAPI-based server implementing the Model Context Protocol
+   with secure, token-authenticated file-writing tools for confirmed reservations.
+2. **MCP client** — `MCPClient` integrates with `EscalationService` to automatically
+   write confirmed reservations to persistent storage.
+3. **File format compliance** — writes reservations in the exact format specified:
+   `Name | Car Number | Reservation Period | Approval Time`
+4. **Security** — token-based authentication prevents unauthorized access; server
+   resists malicious requests and ensures reliable service.
+5. **Graceful degradation** — file-writing failures are logged but don't block
+   approvals; Stages 1 and 2 continue working if the MCP server is unavailable.
+6. **Tests** — 18 new tests covering MCP server endpoints, client operations, and
+   end-to-end Stage 1+2+3 integration; all 75 tests pass.
+7. **Documentation** — this README, inline docstrings, and comprehensive test
+   coverage demonstrate the complete system.
