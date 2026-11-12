@@ -38,10 +38,31 @@ class Settings(BaseSettings):
     relevance_min_score: float = 0.30
     embedding_dim: int = 256
 
+    # --- Stage 2: human-in-the-loop admin approval ---
+    # Who approves reservations, and how the admin agent reaches them. The
+    # dashboard (GET /admin) and admin CLI always work offline; email is an
+    # optional extra notification channel that only activates when configured.
+    admin_name: str = "CityPark Administrator"
+    admin_email: str = ""            # recipient for email escalations (optional)
+    admin_token: str = ""            # if set, /admin endpoints require this token
+
+    # SMTP (optional) — only used when smtp_host and admin_email are both set.
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_user: str = ""
+    smtp_password: str = ""
+    smtp_from: str = ""              # falls back to smtp_user if blank
+    smtp_use_tls: bool = True
+
     @property
     def llm_configured(self) -> bool:
         """True when a real DIAL key is present (i.e. not offline mode)."""
         return bool(self.dial_api_key.strip())
+
+    @property
+    def email_configured(self) -> bool:
+        """True when the optional SMTP email escalation channel can be used."""
+        return bool(self.smtp_host.strip() and self.admin_email.strip())
 
 
 @lru_cache

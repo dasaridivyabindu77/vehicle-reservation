@@ -16,11 +16,13 @@ import threading
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 
+from ..admin import routes as admin_routes
 from ..chatbot import Chatbot
+from ..config import Settings, get_settings
 
 logger = logging.getLogger(__name__)
 
@@ -50,7 +52,23 @@ async def lifespan(app: FastAPI):
     yield
 
 
-app = FastAPI(title="CityPark Assistant", version="0.1.0", lifespan=lifespan)
+app = FastAPI(title="CityPark Assistant", version="0.2.0", lifespan=lifespan)
+
+
+# --- Dependency providers for admin routes -----------------------------------
+def _get_escalation():
+    """Expose the bot's escalation service to the admin routes."""
+    return get_bot().escalation
+
+
+def _get_settings() -> Settings:
+    return get_settings()
+
+
+# The admin routes declare placeholder dependencies; register the real providers.
+app.include_router(admin_routes.router)
+app.dependency_overrides[admin_routes.get_escalation_dep] = _get_escalation
+app.dependency_overrides[admin_routes.get_settings_dep] = _get_settings
 
 
 class ChatRequest(BaseModel):

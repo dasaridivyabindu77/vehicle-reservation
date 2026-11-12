@@ -94,7 +94,7 @@ def _validate(slot: str, raw: str) -> tuple[Optional[str], Optional[str]]:
 
         if dt <= datetime.now():
             return None, (
-                "That date/time must be in the future. "
+                "That date/time is in the past. "
                 "Please enter a future date and time."
             )
 
@@ -175,14 +175,22 @@ def ingest(session: ReservationSession, user_text: str, store=None) -> IngestRes
 
 
 def confirmation(session: ReservationSession) -> str:
+    """Summary shown to the user once every slot is filled.
+
+    Stage 2 is human-in-the-loop: the booking is **not** auto-confirmed. It is
+    recorded as ``pending_admin`` and handed to the administrator agent for
+    approval, so the message here says the request is awaiting confirmation.
+    """
     d = session.data
-    ref = f" Your reference is #{session.reservation_id}." if session.reservation_id else ""
+    ref = f"#{session.reservation_id}" if session.reservation_id else "(pending)"
     return (
-        "Here's your reservation request:\n"
+        f"Here's your reservation request {ref}:\n"
         f"  Name:  {d['first_name']} {d['last_name']}\n"
         f"  Plate: {d['car_number']}\n"
         f"  From:  {d['start']}\n"
         f"  To:    {d['end']}\n"
-        f"Status: CONFIRMED.\n"
-        "Your parking reservation is successfully confirmed. Thank you for choosing CityPark!"
+        "Status: pending administrator confirmation.\n"
+        "I've sent it to our administrator for approval — this usually takes a "
+        "moment. Ask me \"what's the status of my booking?\" any time and I'll "
+        "check for you."
     )

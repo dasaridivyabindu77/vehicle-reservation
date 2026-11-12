@@ -18,6 +18,8 @@ from langchain_core.documents import Document
 from langchain_core.messages import HumanMessage, SystemMessage
 
 from . import guardrails, relevance, reservation
+from .admin.agent import AdminAgent
+from .admin.escalation import EscalationService
 from .config import Settings, get_settings
 from .graph import build_turn_graph
 from .knowledge import load_static_documents
@@ -79,6 +81,7 @@ class Chatbot:
         settings: Optional[Settings] = None,
         prefer_weaviate: Optional[bool] = None,
         seed: bool = True,
+        escalation: Optional[EscalationService] = None,
     ) -> None:
         self.settings = settings or get_settings()
         self.embeddings = build_embeddings(self.settings)
@@ -89,6 +92,14 @@ class Chatbot:
         self.sql = DynamicDataStore(self.settings.sqlite_path)
         self._sessions: Dict[str, ReservationSession] = {}
         self._graph = build_turn_graph(self)
+
+        # Stage 2: administrator approval escalation.
+        if escalation is not None:
+            self.escalation = escalation
+        else:
+            admin_agent = AdminAgent(self.settings, self.chat_model)
+            self.escalation = EscalationService(self.sql, admin_agent)
+
         if seed:
             self.bootstrap()
 
@@ -146,6 +157,14 @@ class Chatbot:
                 session.reservation_id = None
                 return "No problem — I've cancelled that booking process. Anything else I can help with?"
         result = reservation.ingest(session, message, store=self.sql)
+
+        # Stage 2: when the booking is complete, escalate it to the administrator.
+        if result.reservation_ready and session.reservation_id:
+            try:
+                self.escalation.submit(session.reservation_id)
+            except Exception as exc:  # noqa: BLE001 - never crash a turn
+                logger.warning("Escalation failed for #%s (%s)", session.reservation_id, exc)
+
         return result.reply
 
     def retrieve(self, message: str) -> Tuple[List[Tuple[Document, float]], str]:
