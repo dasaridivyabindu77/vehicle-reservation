@@ -44,6 +44,15 @@ _QUESTION_RE = re.compile(
     re.IGNORECASE,
 )
 _CANCEL_WORDS = {"cancel", "stop", "quit", "exit", "nevermind", "never mind"}
+_STATUS_RE = re.compile(
+    r"\b(status|booking status|reservation status|check my booking|"
+    r"check my reservation)\b",
+    re.IGNORECASE,
+)
+_RESERVATION_ID_RE = re.compile(
+    r"\b(?:booking|reservation)\s*(?:number|reference)?\s*#?(\d+)\b|#(\d+)",
+    re.IGNORECASE,
+)
 _SMALLTALK = {
     "hi", "hello", "hey", "hiya", "yo",
     "good morning", "good afternoon", "good evening",
@@ -121,6 +130,8 @@ class Chatbot:
         session = self._sessions.get(session_id)
         text = message.strip()
         normalized = text.lower()
+        if _STATUS_RE.search(text):
+            return "status"
 
         # Handle booking commands while a reservation is active.
         if session is not None and session.active:
@@ -156,7 +167,9 @@ class Chatbot:
                 session.completed = False
                 session.reservation_id = None
                 return "No problem — I've cancelled that booking process. Anything else I can help with?"
-        result = reservation.ingest(session, message, store=self.sql)
+        result = reservation.ingest(
+            session, message, store=self.sql, session_id=session_id
+        )
 
         # Stage 2: when the booking is complete, escalate it to the administrator.
         if result.reservation_ready and session.reservation_id:
@@ -166,6 +179,36 @@ class Chatbot:
                 logger.warning("Escalation failed for #%s (%s)", session.reservation_id, exc)
 
         return result.reply
+
+    def run_status(self, session_id: str, message: str) -> str:
+        """Return the status of this chat's latest booking or a referenced one."""
+        match = _RESERVATION_ID_RE.search(message)
+        if match:
+            reservation_id = int(match.group(1) or match.group(2))
+            booking = self.sql.get_reservation(reservation_id)
+        else:
+            session = self._sessions.get(session_id)
+            booking = (
+                self.sql.get_reservation(session.reservation_id)
+                if session and session.reservation_id
+                else self.sql.get_latest_reservation_for_session(session_id)
+            )
+
+        if booking is None:
+            return (
+                "I couldn't find a reservation linked to this chat. "
+                "If you have the reference number, ask me about booking #123."
+            )
+
+        status = {
+            "pending_admin": "pending administrator approval",
+            "confirmed": "confirmed",
+            "refused": "refused",
+        }.get(booking.status, booking.status.replace("_", " "))
+        reply = f"Reservation #{booking.id} status: {status}."
+        if booking.status == "refused" and booking.admin_reason:
+            reply += f" Reason: {booking.admin_reason}"
+        return reply
 
     def retrieve(self, message: str) -> Tuple[List[Tuple[Document, float]], str]:
         hits = self.store.search(message, k=self.settings.top_k)

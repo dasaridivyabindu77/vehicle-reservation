@@ -160,8 +160,7 @@ class AdminAgent:
         model is given a ``deliver_to_administrator`` tool and instructed to use
         it to send the already-composed request. Imported lazily (DIAL-only path).
         """
-        from langchain.agents import AgentExecutor, create_tool_calling_agent
-        from langchain_core.prompts import ChatPromptTemplate
+        from langchain.agents import create_agent
         from langchain_core.tools import tool
 
         delivered: List[str] = []
@@ -172,21 +171,25 @@ class AdminAgent:
             delivered.extend(self._deliver(reservation, request_text))
             return f"Delivered via: {', '.join(delivered) or 'no channel'}"
 
-        prompt = ChatPromptTemplate.from_messages(
-            [
-                (
-                    "system",
-                    "You deliver reservation approval requests to the CityPark "
-                    "administrator. Call deliver_to_administrator exactly once with "
-                    "the request text, then stop.",
-                ),
-                ("human", "Deliver this approval request:\n\n{message}"),
-                ("placeholder", "{agent_scratchpad}"),
-            ]
+        agent = create_agent(
+            self.chat_model,
+            tools=[deliver_to_administrator],
+            system_prompt=(
+                "You deliver reservation approval requests to the CityPark "
+                "administrator. Call deliver_to_administrator exactly once with "
+                "the request text, then stop."
+            ),
         )
-        agent = create_tool_calling_agent(self.chat_model, [deliver_to_administrator], prompt)
-        executor = AgentExecutor(agent=agent, tools=[deliver_to_administrator], verbose=False)
-        executor.invoke({"message": message})
+        agent.invoke(
+            {
+                "messages": [
+                    {
+                        "role": "user",
+                        "content": f"Deliver this approval request:\n\n{message}",
+                    }
+                ]
+            }
+        )
         if not delivered:  # agent didn't call the tool — deliver directly
             self._deliver(reservation, message)
 

@@ -8,20 +8,20 @@ approve/refuse buttons. Uses the same dark theme as the main chat UI.
 **POST /admin/api/reservations/{id}/decision** — apply an approve/refuse decision.
   ``{decision: "approve"|"refuse", reason?: str}``
 
-When ``Settings.admin_token`` is set, the decision endpoint requires that token
-as a ``?token=...`` query param. The dashboard and the list endpoint are always
-open (the administrator views them in their own browser, not exposed publicly).
+Reservation data and decision endpoints require the configured administrator
+token in the ``X-Admin-Token`` header. They fail closed when no token is set.
 """
 
 from __future__ import annotations
 
+import hmac
 import logging
 from pathlib import Path
 from typing import Optional
 
 from typing import TYPE_CHECKING
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, Header, HTTPException, Query
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 
@@ -49,6 +49,20 @@ def get_settings_dep() -> Settings:
     raise NotImplementedError("settings dependency not configured")
 
 
+def require_admin_access(
+    settings: Settings = Depends(get_settings_dep),
+    token: Optional[str] = Header(default=None, alias="X-Admin-Token"),
+) -> None:
+    """Require a configured administrator token for protected endpoints."""
+    if not settings.admin_token:
+        raise HTTPException(
+            status_code=503,
+            detail="admin access is disabled; configure ADMIN_TOKEN",
+        )
+    if token is None or not hmac.compare_digest(token, settings.admin_token):
+        raise HTTPException(status_code=403, detail="invalid or missing admin token")
+
+
 class DecisionRequest(BaseModel):
     decision: str  # "approve" or "refuse"
     reason: Optional[str] = None
@@ -71,6 +85,7 @@ def admin_dashboard() -> str:
 def list_reservations(
     limit: int = Query(default=50, ge=1, le=200),
     escalation: "EscalationService" = Depends(get_escalation_dep),
+    _: None = Depends(require_admin_access),
 ):
     """Pending reservations (top) + recent decided ones (up to ``limit`` total)."""
     pending = escalation.pending()
@@ -85,14 +100,10 @@ def list_reservations(
 def decide(
     reservation_id: int,
     req: DecisionRequest,
-    token: Optional[str] = Query(default=None),
     escalation: "EscalationService" = Depends(get_escalation_dep),
-    settings: Settings = Depends(get_settings_dep),
+    _: None = Depends(require_admin_access),
 ):
     """Apply the administrator's confirm/refuse decision."""
-    if settings.admin_token and token != settings.admin_token:
-        raise HTTPException(status_code=403, detail="invalid or missing admin token")
-
     decision_lower = req.decision.strip().lower()
     if decision_lower not in {"approve", "refuse", "confirm", "reject", "decline"}:
         raise HTTPException(status_code=400, detail="decision must be 'approve' or 'refuse'")

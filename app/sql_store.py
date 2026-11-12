@@ -40,6 +40,7 @@ CREATE TABLE IF NOT EXISTS reservations (
     admin_reason TEXT,
     decided_at  TEXT,
     decided_by  TEXT,
+    session_id  TEXT,
     created_at  TEXT NOT NULL
 );
 """
@@ -49,6 +50,7 @@ _RESERVATION_MIGRATIONS = {
     "admin_reason": "ALTER TABLE reservations ADD COLUMN admin_reason TEXT",
     "decided_at": "ALTER TABLE reservations ADD COLUMN decided_at TEXT",
     "decided_by": "ALTER TABLE reservations ADD COLUMN decided_by TEXT",
+    "session_id": "ALTER TABLE reservations ADD COLUMN session_id TEXT",
 }
 
 # Reservation lifecycle (Stage 2 human-in-the-loop):
@@ -228,12 +230,13 @@ class DynamicDataStore:
         end_ts: str,
         zone_id: Optional[str] = None,
         status: str = STATUS_PENDING,
+        session_id: Optional[str] = None,
     ) -> int:
         cur = self.conn.cursor()
         cur.execute(
             "INSERT INTO reservations "
-            "(first_name, last_name, car_number, zone_id, start_ts, end_ts, status, created_at) "
-            "VALUES (?,?,?,?,?,?,?,?)",
+            "(first_name, last_name, car_number, zone_id, start_ts, end_ts, status, "
+            "session_id, created_at) VALUES (?,?,?,?,?,?,?,?,?)",
             (
                 first_name,
                 last_name,
@@ -242,6 +245,7 @@ class DynamicDataStore:
                 start_ts,
                 end_ts,
                 status,
+                session_id,
                 datetime.now(timezone.utc).isoformat(timespec="seconds"),
             ),
         )
@@ -277,6 +281,13 @@ class DynamicDataStore:
     def get_reservation(self, reservation_id: int) -> Optional[Reservation]:
         row = self.conn.execute(
             "SELECT * FROM reservations WHERE id = ?", (reservation_id,)
+        ).fetchone()
+        return self._row_to_reservation(row) if row else None
+
+    def get_latest_reservation_for_session(self, session_id: str) -> Optional[Reservation]:
+        row = self.conn.execute(
+            "SELECT * FROM reservations WHERE session_id = ? ORDER BY id DESC LIMIT 1",
+            (session_id,),
         ).fetchone()
         return self._row_to_reservation(row) if row else None
 

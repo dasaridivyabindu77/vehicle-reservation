@@ -187,7 +187,9 @@ Edit `.env`:
 
 - `ADMIN_NAME` — the administrator's name shown in composed requests (default: "CityPark Administrator")
 - `ADMIN_EMAIL` — if set, enables optional SMTP email escalations
-- `ADMIN_TOKEN` — if set, the `/admin/api/reservations/{id}/decision` endpoint requires `?token=...`
+- `ADMIN_TOKEN` — required to use admin reservation APIs. Set a long, random
+  secret; the dashboard sends it in the `X-Admin-Token` header. Admin APIs are
+  disabled until this is configured.
 
 **Optional SMTP email channel** (only activates when both `SMTP_HOST` and `ADMIN_EMAIL` are set):
 
@@ -274,7 +276,10 @@ to approve or refuse each one, with an optional reason.
 - `GET /admin/api/reservations` — JSON list of pending + recent reservations
 - `POST /admin/api/reservations/{id}/decision` — `{"decision": "approve"|"refuse", "reason": "..."}`
 
-The decision endpoint requires `?token=...` if `ADMIN_TOKEN` is set in `.env`.
+Both API endpoints require the configured administrator token in the
+`X-Admin-Token` header. Reservation status questions return the latest booking
+for the current chat, including whether it is pending, confirmed, or refused.
+You can also ask about a specific reference, for example "status of booking #7".
 
 ---
 

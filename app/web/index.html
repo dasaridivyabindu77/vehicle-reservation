@@ -42,7 +42,9 @@
     const input = document.getElementById('input');
     const send = document.getElementById('send');
     const meta = document.getElementById('meta');
-    const sessionId = 'web-' + Math.random().toString(36).slice(2, 10);
+    const sessionId = sessionStorage.getItem('citypark-session-id')
+      || 'web-' + Math.random().toString(36).slice(2, 10);
+    sessionStorage.setItem('citypark-session-id', sessionId);
 
     function bubble(text, who, sources) {
       const el = document.createElement('div');

@@ -1,114 +1,415 @@
+
 <!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>CityPark Admin Dashboard</title>
+
   <style>
-    :root { --bg:#0f172a; --panel:#1e293b; --card:#334155; --txt:#e2e8f0; --muted:#94a3b8; --approve:#10b981; --refuse:#ef4444; --pending:#f59e0b; }
+    :root {
+      --bg:#0f172a;
+      --panel:#1e293b;
+      --card:#334155;
+      --txt:#e2e8f0;
+      --muted:#94a3b8;
+      --approve:#10b981;
+      --refuse:#ef4444;
+      --pending:#f59e0b;
+    }
+
     * { box-sizing: border-box; }
-    body { margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
-           background:var(--bg); color:var(--txt); min-height:100vh; padding-bottom:40px; }
-    header { padding:16px 24px; background:var(--panel); font-weight:600; font-size:20px;
-             border-bottom:1px solid #000; display:flex; justify-content:space-between; align-items:center; }
-    header .meta { font-size:13px; color:var(--muted); font-weight:400; }
-    main { max-width:1200px; margin:24px auto; padding:0 24px; }
-    h2 { font-size:18px; margin:24px 0 12px; color:var(--txt); }
-    .empty { color:var(--muted); font-size:14px; padding:20px; text-align:center; background:var(--card); border-radius:8px; }
-    .card { background:var(--card); border-radius:10px; padding:18px 20px; margin-bottom:14px;
-            box-shadow:0 1px 3px rgba(0,0,0,0.3); }
-    .card-header { display:flex; justify-content:space-between; align-items:baseline; margin-bottom:10px; }
-    .card-header .ref { font-size:15px; font-weight:600; color:var(--txt); }
-    .card-header .status { font-size:12px; padding:3px 8px; border-radius:4px; font-weight:500; }
-    .status.pending { background:var(--pending); color:#000; }
-    .status.confirmed { background:var(--approve); color:#fff; }
-    .status.refused { background:var(--refuse); color:#fff; }
-    .field { font-size:14px; margin:4px 0; line-height:1.5; }
-    .field strong { color:var(--muted); min-width:80px; display:inline-block; }
-    .actions { display:flex; gap:10px; margin-top:14px; padding-top:14px; border-top:1px solid #475569; }
-    .actions input { flex:1; padding:8px 10px; border-radius:6px; border:1px solid #475569;
-                     background:#0b1220; color:var(--txt); font-size:13px; }
-    .actions button { padding:8px 16px; border:0; border-radius:6px; font-size:13px; font-weight:600; cursor:pointer; }
-    .actions button:disabled { opacity:.4; cursor:default; }
-    .btn-approve { background:var(--approve); color:#fff; }
-    .btn-refuse { background:var(--refuse); color:#fff; }
-    .decision-info { font-size:13px; color:var(--muted); margin-top:8px; padding-top:8px; border-top:1px solid #475569; }
-    #status { position:fixed; bottom:16px; right:16px; padding:10px 16px; border-radius:8px;
-              background:var(--panel); color:var(--txt); font-size:13px; display:none; box-shadow:0 4px 12px rgba(0,0,0,0.5); }
-    #status.show { display:block; animation:fadeIn 0.2s; }
-    @keyframes fadeIn { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
+
+    body {
+      margin:0;
+      font-family:system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      background:var(--bg);
+      color:var(--txt);
+      min-height:100vh;
+      padding-bottom:40px;
+    }
+
+    header {
+      padding:16px 24px;
+      background:var(--panel);
+      font-weight:600;
+      font-size:20px;
+      border-bottom:1px solid #000;
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      flex-wrap:wrap;
+      gap:12px;
+    }
+
+    header .meta {
+      font-size:13px;
+      color:var(--muted);
+      font-weight:400;
+    }
+
+    main {
+      max-width:1200px;
+      margin:24px auto;
+      padding:0 24px;
+    }
+
+    h2 {
+      font-size:18px;
+      margin:24px 0 12px;
+      color:var(--txt);
+    }
+
+    .empty {
+      color:var(--muted);
+      font-size:14px;
+      padding:20px;
+      text-align:center;
+      background:var(--card);
+      border-radius:8px;
+    }
+
+    .card {
+      background:var(--card);
+      border-radius:10px;
+      padding:18px 20px;
+      margin-bottom:14px;
+      box-shadow:0 1px 3px rgba(0,0,0,0.3);
+    }
+
+    .card-header {
+      display:flex;
+      justify-content:space-between;
+      align-items:baseline;
+      margin-bottom:10px;
+      gap:10px;
+    }
+
+    .card-header .ref {
+      font-size:15px;
+      font-weight:600;
+      color:var(--txt);
+    }
+
+    .card-header .status {
+      font-size:12px;
+      padding:3px 8px;
+      border-radius:4px;
+      font-weight:500;
+    }
+
+    .status.pending {
+      background:var(--pending);
+      color:#000;
+    }
+
+    .status.confirmed {
+      background:var(--approve);
+      color:#fff;
+    }
+
+    .status.refused {
+      background:var(--refuse);
+      color:#fff;
+    }
+
+    .field {
+      font-size:14px;
+      margin:4px 0;
+      line-height:1.5;
+      overflow-wrap:anywhere;
+    }
+
+    .field strong {
+      color:var(--muted);
+      min-width:80px;
+      display:inline-block;
+    }
+
+    .actions {
+      display:flex;
+      gap:10px;
+      margin-top:14px;
+      padding-top:14px;
+      border-top:1px solid #475569;
+      flex-wrap:wrap;
+    }
+
+    .actions input {
+      flex:1;
+      min-width:160px;
+      padding:8px 10px;
+      border-radius:6px;
+      border:1px solid #475569;
+      background:#0b1220;
+      color:var(--txt);
+      font-size:13px;
+    }
+
+    .actions button {
+      padding:8px 16px;
+      border:0;
+      border-radius:6px;
+      font-size:13px;
+      font-weight:600;
+      cursor:pointer;
+    }
+
+    .actions button:disabled {
+      opacity:.4;
+      cursor:default;
+    }
+
+    .btn-approve {
+      background:var(--approve);
+      color:#fff;
+    }
+
+    .btn-refuse {
+      background:var(--refuse);
+      color:#fff;
+    }
+
+    .auth {
+      display:flex;
+      align-items:center;
+      gap:8px;
+      flex-wrap:wrap;
+    }
+
+    .auth input {
+      width:220px;
+      padding:7px 9px;
+      border-radius:6px;
+      border:1px solid #475569;
+      background:#0b1220;
+      color:var(--txt);
+    }
+
+    .auth button {
+      padding:7px 12px;
+      border:0;
+      border-radius:6px;
+      cursor:pointer;
+    }
+
+    .decision-info {
+      font-size:13px;
+      color:var(--muted);
+      margin-top:8px;
+      padding-top:8px;
+      border-top:1px solid #475569;
+      overflow-wrap:anywhere;
+    }
+
+    #status {
+      position:fixed;
+      bottom:16px;
+      right:16px;
+      padding:10px 16px;
+      border-radius:8px;
+      background:var(--panel);
+      color:var(--txt);
+      font-size:13px;
+      display:none;
+      box-shadow:0 4px 12px rgba(0,0,0,0.5);
+      max-width:90%;
+    }
+
+    #status.show {
+      display:block;
+      animation:fadeIn 0.2s;
+    }
+
+    @keyframes fadeIn {
+      from { opacity:0; transform:translateY(10px); }
+      to { opacity:1; transform:translateY(0); }
+    }
   </style>
 </head>
+
 <body>
   <header>
     <span>🅿️ CityPark Admin Dashboard</span>
-    <span class="meta" id="meta">loading…</span>
+
+    <div class="auth">
+      <label for="admin-token">Admin token</label>
+      <input
+        id="admin-token"
+        type="password"
+        autocomplete="current-password"
+      />
+      <button id="connect" type="button">Connect</button>
+      <span class="meta" id="meta">Enter token to connect</span>
+    </div>
   </header>
+
   <main>
     <h2>⏳ Pending Reservations</h2>
     <div id="pending"></div>
+
     <h2>📋 Recent Decisions</h2>
     <div id="recent"></div>
   </main>
-  <div id="status"></div>
+
+  <div id="status" role="status" aria-live="polite"></div>
 
   <script>
     const pendingEl = document.getElementById('pending');
     const recentEl = document.getElementById('recent');
     const metaEl = document.getElementById('meta');
     const statusEl = document.getElementById('status');
+    const tokenEl = document.getElementById('admin-token');
+    const connectBtn = document.getElementById('connect');
+
+    tokenEl.value =
+      sessionStorage.getItem('citypark-admin-token') || '';
+
+    // Escape dynamic values before inserting them into HTML.
+    function escapeHTML(value) {
+      return String(value ?? '').replace(/[&<>"']/g, char => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;'
+      })[char]);
+    }
+
+    function adminHeaders(headers = {}) {
+      return {
+        ...headers,
+        'X-Admin-Token': tokenEl.value.trim()
+      };
+    }
 
     function showStatus(msg, duration = 3000) {
       statusEl.textContent = msg;
       statusEl.classList.add('show');
-      setTimeout(() => statusEl.classList.remove('show'), duration);
+
+      setTimeout(() => {
+        statusEl.classList.remove('show');
+      }, duration);
     }
+
+    async function readError(response, fallback) {
+      try {
+        const data = await response.json();
+        return data.detail || fallback;
+      } catch {
+        return fallback;
+      }
+    }
+
+    // Connect only after the administrator enters a token.
+    connectBtn.addEventListener('click', () => {
+      const token = tokenEl.value.trim();
+
+      if (!token) {
+        showStatus('Please enter your administrator token.', 4000);
+        return;
+      }
+
+      sessionStorage.setItem('citypark-admin-token', token);
+      load();
+    });
+
+    tokenEl.addEventListener('keydown', event => {
+      if (event.key === 'Enter') {
+        connectBtn.click();
+      }
+    });
 
     function renderCard(r, isPending) {
       const card = document.createElement('div');
       card.className = 'card';
       card.dataset.id = r.id;
 
-      const statusClass = r.status === 'confirmed' ? 'confirmed' : r.status === 'refused' ? 'refused' : 'pending';
-      const statusLabel = r.status.replace('_', ' ');
+      const statusClass =
+        r.status === 'confirmed' ? 'confirmed' :
+        r.status === 'refused' ? 'refused' : 'pending';
+
+      const statusLabel = String(r.status || 'pending').replace(/_/g, ' ');
 
       let actionsHtml = '';
+
       if (isPending) {
         actionsHtml = `
           <div class="actions">
-            <input type="text" placeholder="reason (optional)" data-reason />
-            <button class="btn-approve" data-action="approve">Approve</button>
-            <button class="btn-refuse" data-action="refuse">Refuse</button>
+            <input
+              type="text"
+              placeholder="Reason (optional)"
+              data-reason
+            />
+            <button class="btn-approve" data-action="approve">
+              Approve
+            </button>
+            <button class="btn-refuse" data-action="refuse">
+              Refuse
+            </button>
           </div>
         `;
       } else if (r.decided_at) {
         actionsHtml = `
           <div class="decision-info">
-            Decided: ${r.status} by ${r.decided_by || 'admin'} at ${r.decided_at}<br>
-            ${r.admin_reason ? 'Reason: ' + r.admin_reason : ''}
+            Decided: ${escapeHTML(r.status)}
+            by ${escapeHTML(r.decided_by || 'admin')}
+            at ${escapeHTML(r.decided_at)}<br>
+            ${
+              r.admin_reason
+                ? 'Reason: ' + escapeHTML(r.admin_reason)
+                : ''
+            }
           </div>
         `;
       }
 
       card.innerHTML = `
         <div class="card-header">
-          <span class="ref">#${r.id} — ${r.full_name}</span>
-          <span class="status ${statusClass}">${statusLabel}</span>
+          <span class="ref">
+            #${escapeHTML(r.id)} — ${escapeHTML(r.full_name)}
+          </span>
+          <span class="status ${statusClass}">
+            ${escapeHTML(statusLabel)}
+          </span>
         </div>
-        <div class="field"><strong>Plate:</strong> ${r.car_number}</div>
-        <div class="field"><strong>From:</strong> ${r.start_ts}</div>
-        <div class="field"><strong>To:</strong> ${r.end_ts}</div>
-        <div class="field"><strong>Created:</strong> ${r.created_at}</div>
+
+        <div class="field">
+          <strong>Plate:</strong> ${escapeHTML(r.car_number)}
+        </div>
+
+        <div class="field">
+          <strong>From:</strong> ${escapeHTML(r.start_ts)}
+        </div>
+
+        <div class="field">
+          <strong>To:</strong> ${escapeHTML(r.end_ts)}
+        </div>
+
+        <div class="field">
+          <strong>Created:</strong> ${escapeHTML(r.created_at)}
+        </div>
+
         ${actionsHtml}
       `;
 
       if (isPending) {
-        const approveBtn = card.querySelector('[data-action="approve"]');
-        const refuseBtn = card.querySelector('[data-action="refuse"]');
-        const reasonInput = card.querySelector('[data-reason]');
+        const approveBtn =
+          card.querySelector('[data-action="approve"]');
 
-        approveBtn.addEventListener('click', () => decide(r.id, 'approve', reasonInput.value, card));
-        refuseBtn.addEventListener('click', () => decide(r.id, 'refuse', reasonInput.value, card));
+        const refuseBtn =
+          card.querySelector('[data-action="refuse"]');
+
+        const reasonInput =
+          card.querySelector('[data-reason]');
+
+        approveBtn.addEventListener('click', () => {
+          decide(r.id, 'approve', reasonInput.value, card);
+        });
+
+        refuseBtn.addEventListener('click', () => {
+          decide(r.id, 'refuse', reasonInput.value, card);
+        });
       }
 
       return card;
@@ -116,53 +417,119 @@
 
     async function decide(id, decision, reason, cardEl) {
       const btns = cardEl.querySelectorAll('button');
-      btns.forEach(b => b.disabled = true);
+      btns.forEach(btn => btn.disabled = true);
+
       try {
-        const r = await fetch(`/admin/api/reservations/${id}/decision`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ decision, reason: reason.trim() || null })
-        });
-        if (!r.ok) {
-          const err = await r.json();
-          throw new Error(err.detail || 'decision failed');
+        const response = await fetch(
+          `/admin/api/reservations/${encodeURIComponent(id)}/decision`,
+          {
+            method: 'POST',
+            headers: adminHeaders({
+              'Content-Type': 'application/json'
+            }),
+            body: JSON.stringify({
+              decision,
+              reason: reason.trim() || null
+            })
+          }
+        );
+
+        if (!response.ok) {
+          const message = await readError(
+            response,
+            'Decision failed'
+          );
+          throw new Error(message);
         }
-        const data = await r.json();
-        showStatus(`✓ Reservation #${id} ${data.status}`);
-        load();  // refresh the lists
+
+        const data = await response.json();
+
+        showStatus(
+          `✓ Reservation #${id} ${data.status}`
+        );
+
+        await load();
+
       } catch (err) {
         showStatus(`✗ Error: ${err.message}`, 5000);
-        btns.forEach(b => b.disabled = false);
+        btns.forEach(btn => btn.disabled = false);
       }
     }
 
     async function load() {
+      const token = tokenEl.value.trim();
+
+      if (!token) {
+        metaEl.textContent = 'Enter token to connect';
+        return;
+      }
+
       try {
-        const r = await fetch('/admin/api/reservations');
-        const data = await r.json();
-        metaEl.textContent = `${data.pending.length} pending · ${data.recent.length} recent`;
+        const response = await fetch(
+          '/admin/api/reservations',
+          {
+            headers: adminHeaders()
+          }
+        );
+
+        if (!response.ok) {
+          const message = await readError(
+            response,
+            'Failed to load reservations'
+          );
+          throw new Error(message);
+        }
+
+        const data = await response.json();
+
+        metaEl.textContent =
+          `${data.pending.length} pending · ${data.recent.length} recent`;
 
         pendingEl.innerHTML = '';
+
         if (data.pending.length === 0) {
-          pendingEl.innerHTML = '<div class="empty">No pending reservations — all caught up!</div>';
+          pendingEl.innerHTML = `
+            <div class="empty">
+              No pending reservations — all caught up!
+            </div>
+          `;
         } else {
-          data.pending.forEach(res => pendingEl.appendChild(renderCard(res, true)));
+          data.pending.forEach(res => {
+            pendingEl.appendChild(renderCard(res, true));
+          });
         }
 
         recentEl.innerHTML = '';
+
         if (data.recent.length === 0) {
-          recentEl.innerHTML = '<div class="empty">No recent decisions yet.</div>';
+          recentEl.innerHTML = `
+            <div class="empty">
+              No recent decisions yet.
+            </div>
+          `;
         } else {
-          data.recent.forEach(res => recentEl.appendChild(renderCard(res, false)));
+          data.recent.forEach(res => {
+            recentEl.appendChild(renderCard(res, false));
+          });
         }
+
       } catch (err) {
-        metaEl.textContent = 'error loading';
-        showStatus('Failed to load reservations', 5000);
+        metaEl.textContent = 'Connection error';
+        showStatus(`Failed to load: ${err.message}`, 5000);
       }
     }
 
-    load();
-    setInterval(load, 10000);  // auto-refresh every 10s
+    // Load only if a token was previously saved in this tab.
+    if (tokenEl.value.trim()) {
+      load();
+    }
+
+    // Refresh every 10 seconds, but only when connected.
+    setInterval(() => {
+      if (tokenEl.value.trim()) {
+        load();
+      }
+    }, 10000);
   </script>
 </body>
 </html>

@@ -47,6 +47,10 @@ def build_turn_graph(bot):
         answer = bot.run_reservation(state["session_id"], state["message"])
         return {"answer": answer, "refused": False}
 
+    def status(state: TurnState) -> TurnState:
+        answer = bot.run_status(state["session_id"], state["message"])
+        return {"answer": answer, "refused": False}
+
     def retrieve(state: TurnState) -> TurnState:
         docs, dynamic_ctx = bot.retrieve(state["message"])
         return {"documents": docs, "dynamic_context": dynamic_ctx}
@@ -66,12 +70,18 @@ def build_turn_graph(bot):
         return "blocked" if state.get("blocked") else "route"
 
     def after_route(state: TurnState) -> str:
-        return "reserve" if state.get("intent") == "reserve" else "retrieve"
+        intent = state.get("intent")
+        if intent == "reserve":
+            return "reserve"
+        if intent == "status":
+            return "status"
+        return "retrieve"
 
     graph = StateGraph(TurnState)
     graph.add_node("input_guard", input_guard)
     graph.add_node("route", route)
     graph.add_node("reserve", reserve)
+    graph.add_node("status", status)
     graph.add_node("retrieve", retrieve)
     graph.add_node("generate", generate)
     graph.add_node("output_guard", output_guard)
@@ -81,10 +91,13 @@ def build_turn_graph(bot):
         "input_guard", after_input, {"blocked": END, "route": "route"}
     )
     graph.add_conditional_edges(
-        "route", after_route, {"reserve": "reserve", "retrieve": "retrieve"}
+        "route",
+        after_route,
+        {"reserve": "reserve", "status": "status", "retrieve": "retrieve"},
     )
     graph.add_edge("retrieve", "generate")
     graph.add_edge("reserve", "output_guard")
+    graph.add_edge("status", "output_guard")
     graph.add_edge("generate", "output_guard")
     graph.add_edge("output_guard", END)
 

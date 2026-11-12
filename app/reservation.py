@@ -112,7 +112,12 @@ def first_prompt() -> str:
     return PROMPTS["first_name"]
 
 
-def ingest(session: ReservationSession, user_text: str, store=None) -> IngestResult:
+def ingest(
+    session: ReservationSession,
+    user_text: str,
+    store=None,
+    session_id: Optional[str] = None,
+) -> IngestResult:
     """Feed one user message into the active reservation flow."""
     command = user_text.strip().lower()
 
@@ -170,6 +175,7 @@ def ingest(session: ReservationSession, user_text: str, store=None) -> IngestRes
             car_number=session.data["car_number"],
             start_ts=session.data["start"],
             end_ts=session.data["end"],
+            session_id=session_id,
         )
     return IngestResult(reply=confirmation(session), done=True, reservation_ready=True)
 

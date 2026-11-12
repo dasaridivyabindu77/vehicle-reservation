@@ -40,6 +40,14 @@ def test_reservation_flow_end_to_end(bot):
     assert "pending administrator confirmation" in final.reply.lower()
     assert final.in_reservation is False
     assert bot.sql.reservation_count() == 1
+    status = bot.chat("what's the status of my booking?", session_id=sid)
+    assert "pending administrator approval" in status.reply.lower()
+
+    booking = bot.sql.get_latest_reservation_for_session(sid)
+    assert booking is not None
+    bot.sql.set_decision(booking.id, "confirmed", "Approved.")
+    status = bot.chat("what's the status of my booking?", session_id=sid)
+    assert "status: confirmed" in status.reply.lower()
 
 
 def test_greeting_gets_help_not_refusal(bot):
